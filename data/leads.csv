@@ -1,0 +1,16 @@
+id,nombre,empresa,email,sector,ingresos_estimados,empleados,ultimo_contacto_dias,interes
+1,Ana López,TechNova,ana.lopez@technova.com,Software,2500000,120,45,9
+2,Carlos Ruiz,AgroPlus,carlos@agroplus.es,Agricultura,800000,35,12,6
+3,Lucía Martín,HealthCorp,lucia@healthcorp.com,Salud,5000000,300,60,8
+4,Miguel Torres,BuildIt,miguel@buildit.es,Construcción,300000,20,90,7
+5,Sara Jiménez,FinAnalytics,sara@finanalytics.com,Finanzas,1200000,75,10,4
+6,David Romero,EduSmart,david@edusmart.es,Educación,600000,40,120,8
+7,Laura Pérez,GreenEnergy,laura@greenenergy.com,Energía,7000000,500,5,10
+8,Jorge Díaz,MarketPro,jorge@marketpro.es,Marketing,450000,18,75,5
+9,Elena Sánchez,Cloudify,elena@cloudify.io,Software,3200000,150,30,9
+10,Raúl Gómez,LogisTrans,raul@logistrans.es,Logística,950000,60,15,3
+11,Patricia Vega,MedSolutions,patricia@medsolutions.com,Salud,2100000,110,40,8
+12,Alberto Cano,FoodChain,alberto@foodchain.es,Alimentación,400000,25,200,6
+13,Marta León,CyberSecure,marta@cybersecure.io,Ciberseguridad,5500000,220,18,9
+14,Diego Morales,UrbanStyle,diego@urbanstyle.es,Retail,350000,15,95,2
+15,Natalia Cruz,AI Dynamics,natalia@aidynamics.ai,Software,8000000,600,7,10
