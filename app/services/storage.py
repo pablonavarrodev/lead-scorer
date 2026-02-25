@@ -5,6 +5,7 @@ def read_leads_csv(path):
 
     leads = []
 
+    #with es una estructura de control que me asegura que despues del open() va a aver un close() aunque se interrumpa la ejecucion
     with open(path, newline="", encoding="utf-8") as file:
         
         reader = csv.DictReader(file)
