@@ -8,8 +8,8 @@ API pensada para integrar modelos de lenguaje y evolucionar hacia un agente inte
 
 ✅ Lee leads desde un CSV  
 ✅ Convierte los datos a JSON estructurado  
-✅ Aplica un sistema de scoring basado en reglas deterministas  
+✅ Aplica un sistema de scoring basado en reglas  
 ✅ Valida datos mediante Pydantic  
 ✅ Incluye tests automatizados  
-✅ Está dockerizado para facilitar despliegue y reproducibilidad  
-✅ Usa separación clara de responsabilidades (API / servicios / modelos)
+✅ Está dockerizado para facilitar despliegue  
+✅ Usa separación de responsabilidades (API / servicios / modelos)
