@@ -1,4 +1,4 @@
-# 🤖 BitSealer — Procesamiento y evaluación de leads comerciales.
+# 🤖 Lead Scorer — Procesamiento y evaluación de leads comerciales.
 
 API pensada para integrar modelos de lenguaje y evolucionar hacia un agente inteligente que automatice el análisis y la toma de decisiones.
 
