@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 import json
-from app.schemas import LeadIn, LeadScored
+from app.schemas import LeadIn, LeadScored, LeadScoredAIResponse
+from app.services.llm_enrichment import enrich_lead_ai
 from app.services.scoring import score_lead, score_all
 from app.services.storage import read_leads_csv, write_json
 from app.core.config import BASE_DIR, DATA_CSV, OUTPUT_DIR, OUTPUT_JSON
@@ -72,3 +73,20 @@ def get_scored_leads():
         data = json.load(f)
 
     return data
+
+#LangChain endpoints
+@router.post("/score-ai", response_model=LeadScoredAIResponse)
+def score_one_ai(lead: LeadIn):
+    scored = score_lead(lead.model_dump())
+
+    ai = enrich_lead_ai(
+        lead=lead.model_dump(),
+        rule_score=scored["score"],
+        prioridad=scored["prioridad"],
+        razones_reglas=scored["razones"],
+    )
+
+    return {
+        "rule_score": scored["score"],
+        "ai": ai
+    }

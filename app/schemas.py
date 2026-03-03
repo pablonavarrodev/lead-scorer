@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import List
+from typing import List, Literal
 
 
 # ---------
@@ -17,8 +17,18 @@ class LeadIn(BaseModel): #Hereda del modelo base (siempre)
     ultimo_contacto_dias: int = Field(ge=0)
     interes: int = Field(ge=0, le=10)  
 
-
 class LeadScored(LeadIn): #Hereda de LeadIn
     score: int
     prioridad: str
     razones: List[str]
+
+class LeadAIResult(BaseModel):
+    ai_summary: str = Field(..., max_length=240)
+    risk_flags: List[str]
+    next_action: Literal["call", "email", "validate_data", "discard"]
+    reasoning_short: str = Field(..., max_length=300)
+
+
+class LeadScoredAIResponse(BaseModel):
+    rule_score: int
+    ai: LeadAIResult
