@@ -9,12 +9,13 @@ from app.schemas import LeadAIResult
 
 load_dotenv()
 
-# Instancia global (simple y suficiente para empezar)
-_llm = ChatOpenAI(
-    model="gpt-4o-mini",
-    temperature=0,
-    max_tokens=250,
-)
+#lo ponemos en una funcion para que al importarlo no se ejecuto y asi no rompa en test ya que no tenemos la api key en github.
+def _get_llm():
+    return ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0,
+        max_tokens=250,
+    )
 
 _PROMPT = """Eres un asistente comercial.
 
@@ -88,7 +89,8 @@ def enrich_lead_ai(   #esto son parametros normales pero indicamos el tipo
     )
 
     #esto devuelve un objeto!
-    resp = _llm.invoke(prompt)
+    llm = _get_llm()
+    resp = llm.invoke(prompt)
     #solo texto generado
     raw = resp.content
 
@@ -102,6 +104,6 @@ def enrich_lead_ai(   #esto son parametros normales pero indicamos el tipo
             "Devuelve SOLO el JSON válido con los campos exactos.\n\n"
             f"RESPUESTA ANTERIOR:\n{raw}" #le mandamos raw para que tenga la respuesta
         )
-        resp2 = _llm.invoke(fix_prompt)
+        resp2 = llm.invoke(fix_prompt)
         data2 = _extract_json(resp2.content)
         return LeadAIResult(**data2)
