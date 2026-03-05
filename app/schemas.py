@@ -32,3 +32,10 @@ class LeadAIResult(BaseModel):
 class LeadScoredAIResponse(BaseModel):
     rule_score: int
     ai: LeadAIResult
+
+class EnrichedLead(BaseModel):
+    lead: LeadIn
+    rule_score: int
+    prioridad: str
+    razones: List
+    ai: LeadAIResult

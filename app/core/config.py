@@ -14,3 +14,4 @@ DATA_CSV = BASE_DIR / os.getenv("DATA_CSV_PATH", "data/leads.csv")
 
 OUTPUT_DIR = BASE_DIR / os.getenv("OUTPUT_DIR", "output")
 OUTPUT_JSON = OUTPUT_DIR / os.getenv("OUTPUT_FILE", "leads_scored.json")
+OUTPUT_ENRICH_JSON = OUTPUT_DIR / os.getenv("OUTPUT_FILE_ENRICHED", "leads_enriched.json")

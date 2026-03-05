@@ -1,11 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 import json
-from app.schemas import LeadIn, LeadScored, LeadScoredAIResponse
-from app.services.llm_enrichment import enrich_lead_ai
+from app.schemas import LeadIn, LeadScored, LeadScoredAIResponse, EnrichedLead
+from app.services.llm_enrichment import enrich_lead_ai, enrich_all_ai
 from app.services.scoring import score_lead, score_all
 from app.services.storage import read_leads_csv, write_json
-from app.core.config import BASE_DIR, DATA_CSV, OUTPUT_DIR, OUTPUT_JSON
+from app.core.config import BASE_DIR, DATA_CSV, OUTPUT_DIR, OUTPUT_JSON, OUTPUT_ENRICH_JSON
 
 #creamos el router que luego pasaremos a la app fastapi
 router = APIRouter()
@@ -90,3 +90,33 @@ def score_one_ai(lead: LeadIn):
         "rule_score": scored["score"],
         "ai": ai
     }
+
+@router.post("/enrich-all/run", response_model=list[EnrichedLead])
+def score_all_ai():
+
+    if not DATA_CSV.exists():
+        raise HTTPException(status_code=404, detail=f"No existe el CSV: {DATA_CSV}")
+    
+    OUTPUT_DIR.mkdir(exist_ok=True)
+
+    leads = read_leads_csv(str(DATA_CSV))
+    enricheds = enrich_all_ai(leads)
+
+    #pasamos el objeto pydantic a dict para evitar errores:
+    payload = [e.model_dump() for e in enricheds]
+
+    write_json(payload, str(OUTPUT_ENRICH_JSON))
+
+    return {
+        "status": "ok",
+        "total": len(enricheds),
+        "output_file": str(OUTPUT_ENRICH_JSON)
+    }
+
+@router.get("/leads/enriched", response_model=list[EnrichedLead])
+def get_enriched_leads():
+    if not OUTPUT_ENRICH_JSON.exists():
+        raise HTTPException(404, "No existe output/leads_enriched.json. Ejecuta POST /enrich-all/run primero.")
+
+    with open(OUTPUT_ENRICH_JSON, "r", encoding="utf-8") as f:
+        return json.load(f)

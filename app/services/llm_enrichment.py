@@ -1,11 +1,13 @@
 import json
 import os
 from typing import Any, Dict, List
+from app.services.scoring import score_lead
 
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
 from app.schemas import LeadAIResult
+from app.schemas import EnrichedLead
 
 load_dotenv()
 
@@ -107,3 +109,24 @@ def enrich_lead_ai(   #esto son parametros normales pero indicamos el tipo
         resp2 = llm.invoke(fix_prompt)
         data2 = _extract_json(resp2.content)
         return LeadAIResult(**data2)
+    
+def enrich_all_ai(leads) -> List[EnrichedLead]:
+
+    leads_enrich = []
+
+    for lead in leads:
+
+        lead_score = score_lead(lead)
+        lead_enrich = enrich_lead_ai(lead, lead_score["score"], lead_score["prioridad"], lead_score["razones"])
+
+        full_lead = EnrichedLead(
+            lead = lead,
+            rule_score = lead_score["score"],
+            prioridad = lead_score["prioridad"],
+            razones = lead_score["razones"],
+            ai = lead_enrich
+        )
+
+        leads_enrich.append(full_lead)
+    
+    return leads_enrich
