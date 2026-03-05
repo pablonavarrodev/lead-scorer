@@ -1,6 +1,6 @@
-from fastapi import APIRouter, HTTPException
-from typing import List
 import json
+from fastapi import APIRouter, HTTPException, Query
+from typing import List
 from app.schemas import LeadIn, LeadScored, LeadScoredAIResponse, EnrichedLead
 from app.services.llm_enrichment import enrich_lead_ai, enrich_all_ai
 from app.services.scoring import score_lead, score_all
@@ -92,8 +92,9 @@ def score_one_ai(lead: LeadIn):
         "ai": ai
     }
 
+#query es para indicar que el parametro se pasa por query, no por body. El pattern es para validar que solo acepte esos valores
 @router.post("/enrich-all/run")
-def score_all_ai():
+def score_all_ai(mode: str = Query("overwrite", pattern="^(skip|overwrite)$")):
 
     if not DATA_CSV.exists():
         raise HTTPException(status_code=404, detail=f"No existe el CSV: {DATA_CSV}")
@@ -101,7 +102,8 @@ def score_all_ai():
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     leads = read_leads_csv(str(DATA_CSV))
-    enricheds = enrich_all_ai(leads)
+
+    enricheds, skipped = enrich_all_ai(leads, mode=mode)
 
     #pasamos el objeto pydantic a dict para evitar errores:
     payload = [e.model_dump() for e in enricheds]
@@ -115,6 +117,8 @@ def score_all_ai():
     return {
         "status": "ok",
         "total": len(enricheds),
+        "enriched": len(enricheds),
+        "skipped": skipped,
         "output_file": str(OUTPUT_ENRICH_JSON)
     }
 

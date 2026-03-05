@@ -2,6 +2,7 @@ import json
 import os
 from typing import Any, Dict, List
 from app.services.scoring import score_lead
+from app.repositories.lead_repository import exist_enriched_lead
 
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
@@ -110,11 +111,19 @@ def enrich_lead_ai(   #esto son parametros normales pero indicamos el tipo
         data2 = _extract_json(resp2.content)
         return LeadAIResult(**data2)
     
-def enrich_all_ai(leads) -> List[EnrichedLead]:
+def enrich_all_ai(leads, mode) -> List[EnrichedLead]:
 
     leads_enrich = []
+    skipped = 0
 
     for lead in leads:
+
+        lead_id = int(lead["id"])
+
+        # Si el lead ya está enriquecido y el modo es "skip", lo saltamos
+        if mode == "skip" and exist_enriched_lead(lead_id):
+            skipped += 1
+            continue
 
         lead_score = score_lead(lead)
         lead_enrich = enrich_lead_ai(lead, lead_score["score"], lead_score["prioridad"], lead_score["razones"])
@@ -129,4 +138,5 @@ def enrich_all_ai(leads) -> List[EnrichedLead]:
 
         leads_enrich.append(full_lead)
     
-    return leads_enrich
+    return leads_enrich, skipped
+
