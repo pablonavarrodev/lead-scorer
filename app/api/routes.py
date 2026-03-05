@@ -5,6 +5,7 @@ from app.schemas import LeadIn, LeadScored, LeadScoredAIResponse, EnrichedLead
 from app.services.llm_enrichment import enrich_lead_ai, enrich_all_ai
 from app.services.scoring import score_lead, score_all
 from app.services.storage import read_leads_csv, write_json
+from app.repositories.lead_repository import save_enriched_lead, get_leads_enriched, get_enriched_lead_by_id
 from app.core.config import BASE_DIR, DATA_CSV, OUTPUT_DIR, OUTPUT_JSON, OUTPUT_ENRICH_JSON
 
 #creamos el router que luego pasaremos a la app fastapi
@@ -38,7 +39,7 @@ def get_leads_from_csv():
     return read_leads_csv(str(DATA_CSV))
 
 
-@router.post("/pipeline/run")
+@router.post("/score-all/run")
 def run_pipeline():
     if not DATA_CSV.exists():
         raise HTTPException(status_code=404, detail=f"No existe el CSV: {DATA_CSV}")
@@ -91,7 +92,7 @@ def score_one_ai(lead: LeadIn):
         "ai": ai
     }
 
-@router.post("/enrich-all/run", response_model=list[EnrichedLead])
+@router.post("/enrich-all/run")
 def score_all_ai():
 
     if not DATA_CSV.exists():
@@ -104,6 +105,10 @@ def score_all_ai():
 
     #pasamos el objeto pydantic a dict para evitar errores:
     payload = [e.model_dump() for e in enricheds]
+
+#persistimos en la bd
+    for e in payload:
+        save_enriched_lead(e, status="ok")
 
     write_json(payload, str(OUTPUT_ENRICH_JSON))
 
@@ -120,3 +125,19 @@ def get_enriched_leads():
 
     with open(OUTPUT_ENRICH_JSON, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+
+#base datos
+
+@router.get("/db/leads/enriched")
+def get_enriched_leads_from_db():
+    return get_leads_enriched()
+
+
+@router.get("/db/leads/enriched/{lead_id}")
+def get_enriched_lead_from_db(lead_id: int):
+    lead = get_enriched_lead_by_id(lead_id)
+    if lead is None:
+        raise HTTPException(status_code=404, detail=f"Lead {lead_id} no existe en la BD")
+    return lead
