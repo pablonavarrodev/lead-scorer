@@ -12,4 +12,6 @@ API pensada para integrar modelos de lenguaje y evolucionar hacia un agente inte
 ✅ Valida datos mediante Pydantic  
 ✅ Incluye tests automatizados  
 ✅ Está dockerizado para facilitar despliegue  
-✅ Usa separación de responsabilidades (API / servicios / modelos)
+✅ Usa separación de responsabilidades (API / servicios / modelos)  
+✅ Enriquece leads con un LLM (normaliza/añade información útil para ventas)  
+✅ Endpoint batch para enriquecer todos los leads de una vez (con resumen del proceso y salida a archivo)
