@@ -92,7 +92,7 @@ def score_one_ai(lead: LeadIn):
         "ai": ai
     }
 
-#query es para indicar que el parametro se pasa por query, no por body. El pattern es para validar que solo acepte esos valores
+#query es para indicar que el parametro se pasa por url con ?mode=overwrite. El pattern es para validar que solo acepte esos valores
 @router.post("/enrich-all/run")
 def score_all_ai(mode: str = Query("overwrite", pattern="^(skip|overwrite)$")):
 
