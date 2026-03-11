@@ -3,13 +3,13 @@ from types import SimpleNamespace
 from app.schemas import LeadAIResult, EnrichedLead
 from app.services.llm_enrichment import enrich_lead_ai, enrich_all_ai
 
-#Comprueba que enrich_lead_ai transforma un JSON del LLM en LeadAIResult.
-def test_enrich_lead_ai_returns_valid_object(monkeypatch):
 
-    #Simulamos que sí hay API key para que no salte el RuntimeError
+# Comprueba que enrich_lead_ai transforma un JSON válido del LLM en LeadAIResult.
+def test_enrich_lead_ai_returns_valid_object(monkeypatch):
+    # Simulamos que sí hay API key para que no salte el RuntimeError
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
-    #respuesta fake del LLM con un JSON válido
+    # Respuesta fake del LLM con un JSON válido
     valid_json = """
     {
         "ai_summary": "Lead prometedor con interés alto.",
@@ -18,11 +18,10 @@ def test_enrich_lead_ai_returns_valid_object(monkeypatch):
         "reasoning_short": "Interés alto y contacto reciente."
     }
     """
-    #preparamos la clase invoke que va a recivir el promp pero devuelve el json fake
-    #creamos clase ya que _get_llm en la orginal devuelve un objeto con metodo invoke
+
+    # _get_llm() devuelve un objeto con método invoke(), así que lo imitamos
     class FakeLLM:
         def invoke(self, prompt):
-            #lo del simple es para devolver objeto como haria el llm real.
             return SimpleNamespace(content=valid_json)
 
     # Sustituimos el LLM real por uno falso
@@ -54,10 +53,9 @@ def test_enrich_lead_ai_returns_valid_object(monkeypatch):
     assert "Interés alto" in result.reasoning_short
 
 
-
-#primer intento del LLM JSON inválido, enrich_lead_ai reintenta y devuelve un LeadAIResult válido.
+# Comprueba que si el primer intento devuelve JSON inválido,
+# enrich_lead_ai reintenta y devuelve un LeadAIResult válido.
 def test_enrich_lead_ai_retries_if_first_response_is_invalid(monkeypatch):
-        
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     invalid_response = "esto no es json válido"
@@ -71,7 +69,7 @@ def test_enrich_lead_ai_retries_if_first_response_is_invalid(monkeypatch):
     }
     """
 
-    #hacemos lo mismo pero ahora tiene estado para devolcer primero invalido y luego bueno
+    # Este fake devuelve primero una respuesta mala y luego una buena
     class FakeLLM:
         def __init__(self):
             self.calls = 0
@@ -109,9 +107,10 @@ def test_enrich_lead_ai_retries_if_first_response_is_invalid(monkeypatch):
     assert "data_inconsistency" in result.risk_flags
     assert fake_llm.calls == 2
 
-#comprobamos que enrich_all_ao si esta en modo="skip" no vuelve a enriquecer un lead
-def test_enrich_all_ai_skips_existing_leads_in_skip_mode(monkeypatch):
 
+# Comprueba que enrich_all_ai, en modo skip, no vuelve a enriquecer
+# un lead que ya existe en la BD.
+def test_enrich_all_ai_skips_existing_leads_in_skip_mode(monkeypatch):
     leads = [
         {
             "id": 1,
@@ -137,7 +136,7 @@ def test_enrich_all_ai_skips_existing_leads_in_skip_mode(monkeypatch):
         },
     ]
 
-    #Score fake para no depender de la lógica real aquí.
+    # Score fake para no depender aquí de la lógica real
     def fake_score_lead(lead):
         return {
             "score": 70,
@@ -145,7 +144,7 @@ def test_enrich_all_ai_skips_existing_leads_in_skip_mode(monkeypatch):
             "razones": ["Score fake de prueba"]
         }
 
-    #Simulamos un resultado IA fake
+    # Resultado IA fake para no llamar al LLM real
     def fake_enrich_lead_ai(lead, rule_score, prioridad, razones_reglas):
         return LeadAIResult(
             ai_summary=f"Resumen IA para {lead['nombre']}",
@@ -154,7 +153,7 @@ def test_enrich_all_ai_skips_existing_leads_in_skip_mode(monkeypatch):
             reasoning_short="Mock del enriquecimiento"
         )
 
-    #Lead con id=1 ya existe, el 2 no
+    # El lead 1 ya existe en BD, el 2 no
     def fake_exist_enriched_lead(lead_id):
         return lead_id == 1
 
