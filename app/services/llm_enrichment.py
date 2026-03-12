@@ -1,24 +1,25 @@
+import asyncio
 import json
 import os
 from typing import Any, Dict, List
-from app.services.scoring import score_lead
-from app.repositories.lead_repository import exist_enriched_lead
 
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
-from app.schemas import LeadAIResult
-from app.schemas import EnrichedLead
+from app.repositories.lead_repository import exist_enriched_lead
+from app.schemas import LeadAIResult, EnrichedLead
+from app.services.scoring import score_lead
 
 load_dotenv()
 
-#lo ponemos en una funcion para que al importarlo no se ejecuto y asi no rompa en test ya que no tenemos la api key en github.
+
 def _get_llm():
     return ChatOpenAI(
         model="gpt-4o-mini",
         temperature=0,
         max_tokens=250,
     )
+
 
 _PROMPT = """Eres un asistente comercial.
 
@@ -54,89 +55,129 @@ razones_reglas={razones_json}
 
 
 def _extract_json(text: str) -> Dict[str, Any]:
-    
-    #pasa a JSON aunque el modelo meta texto extra. 
     text = text.strip()
-    # caso ideal
+
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        pass #esto no hace nada y sigue
+        pass
 
-    # busca { y } 
     start = text.find("{")
     end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start: #-1 no encontrado, y mira el orden de las llaves tmbn
+    if start == -1 or end == -1 or end <= start:
         raise ValueError("No se encontró un objeto JSON en la respuesta del LLM")
-    
-    #caso texto limpiado
-    return json.loads(text[start : end + 1]) #el +1 es para incluir el end
+
+    return json.loads(text[start:end + 1])
 
 
-def enrich_lead_ai(   #esto son parametros normales pero indicamos el tipo
+def enrich_lead_ai(
     lead: Dict[str, Any],
     rule_score: int,
     prioridad: str,
     razones_reglas: List[str],
-) -> LeadAIResult:  #aqui indicamos que devuelve un objeto de ese tipo
-    
+) -> LeadAIResult:
     if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("OPENAI_API_KEY no está configurada")
 
     prompt = _PROMPT.format(
-        #pasamos los dict a json para que el llm no se raye, lo del ascii para que no se  raye con acentos
-        lead_json=json.dumps(lead, ensure_ascii=False), 
+        lead_json=json.dumps(lead, ensure_ascii=False),
         rule_score=rule_score,
         prioridad=prioridad,
         razones_json=json.dumps(razones_reglas, ensure_ascii=False),
     )
 
-    #esto devuelve un objeto!
     llm = _get_llm()
     resp = llm.invoke(prompt)
-    #solo texto generado
     raw = resp.content
 
     try:
         data = _extract_json(raw)
         return LeadAIResult(**data)
     except Exception:
-        #si da error JSON invalido, reintentamos.
         fix_prompt = (
             "Tu respuesta anterior no era un JSON válido o no cumplía el schema.\n"
             "Devuelve SOLO el JSON válido con los campos exactos.\n\n"
-            f"RESPUESTA ANTERIOR:\n{raw}" #le mandamos raw para que tenga la respuesta
+            f"RESPUESTA ANTERIOR:\n{raw}"
         )
         resp2 = llm.invoke(fix_prompt)
         data2 = _extract_json(resp2.content)
         return LeadAIResult(**data2)
-    
-def enrich_all_ai(leads, mode) -> List[EnrichedLead]:
 
-    leads_enrich = []
-    skipped = 0
 
-    for lead in leads:
+async def enrich_lead_ai_async(
+    lead: Dict[str, Any],
+    rule_score: int,
+    prioridad: str,
+    razones_reglas: List[str],
+) -> LeadAIResult:
+    if not os.getenv("OPENAI_API_KEY"):
+        raise RuntimeError("OPENAI_API_KEY no está configurada")
 
-        lead_id = int(lead["id"])
+    prompt = _PROMPT.format(
+        lead_json=json.dumps(lead, ensure_ascii=False),
+        rule_score=rule_score,
+        prioridad=prioridad,
+        razones_json=json.dumps(razones_reglas, ensure_ascii=False),
+    )
 
-        # Si el lead ya está enriquecido y el modo es "skip", lo saltamos
-        if mode == "skip" and exist_enriched_lead(lead_id):
-            skipped += 1
-            continue
+    llm = _get_llm()
+    resp = await llm.ainvoke(prompt)
+    raw = resp.content
 
-        lead_score = score_lead(lead)
-        lead_enrich = enrich_lead_ai(lead, lead_score["score"], lead_score["prioridad"], lead_score["razones"])
+    try:
+        data = _extract_json(raw)
+        return LeadAIResult(**data)
+    except Exception:
+        fix_prompt = (
+            "Tu respuesta anterior no era un JSON válido o no cumplía el schema.\n"
+            "Devuelve SOLO el JSON válido con los campos exactos.\n\n"
+            f"RESPUESTA ANTERIOR:\n{raw}"
+        )
+        resp2 = await llm.ainvoke(fix_prompt)
+        data2 = _extract_json(resp2.content)
+        return LeadAIResult(**data2)
 
-        full_lead = EnrichedLead(
-            lead = lead,
-            rule_score = lead_score["score"],
-            prioridad = lead_score["prioridad"],
-            razones = lead_score["razones"],
-            ai = lead_enrich
+
+async def _enrich_one_lead(
+    lead: Dict[str, Any],
+    mode: str,
+    semaphore: asyncio.Semaphore,
+) -> EnrichedLead | None:
+    lead_id = int(lead["id"])
+
+    if mode == "skip" and exist_enriched_lead(lead_id):
+        return None
+
+    lead_score = score_lead(lead)
+
+    async with semaphore:
+        lead_enrich = await enrich_lead_ai_async(
+            lead,
+            lead_score["score"],
+            lead_score["prioridad"],
+            lead_score["razones"],
         )
 
-        leads_enrich.append(full_lead)
-    
-    return leads_enrich, skipped
+    return EnrichedLead(
+        lead=lead,
+        rule_score=lead_score["score"],
+        prioridad=lead_score["prioridad"],
+        razones=lead_score["razones"],
+        ai=lead_enrich,
+    )
 
+
+async def enrich_all_ai(leads, mode, max_concurrency: int = 5) -> tuple[List[EnrichedLead], int]:
+    semaphore = asyncio.Semaphore(max_concurrency)
+
+    tasks = [
+        _enrich_one_lead(lead, mode=mode, semaphore=semaphore)
+        for lead in leads
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    enriched = [r for r in results if r is not None]
+    skipped = len(results) - len(enriched)
+
+    return enriched, skipped

@@ -39,26 +39,31 @@ def get_leads_from_csv():
     return read_leads_csv(str(DATA_CSV))
 
 
-@router.post("/score-all/run")
-def run_pipeline():
+@router.post("/enrich-all/run")
+async def score_all_ai(mode: str = Query("overwrite", pattern="^(skip|overwrite)$")):
+
     if not DATA_CSV.exists():
         raise HTTPException(status_code=404, detail=f"No existe el CSV: {DATA_CSV}")
 
     OUTPUT_DIR.mkdir(exist_ok=True)
 
     leads = read_leads_csv(str(DATA_CSV))
-    scored = score_all(leads)
-    write_json(scored, str(OUTPUT_JSON))
 
-    # nos cuenta cuantos hay de cada prioridad
-    resumen = {"alta": 0, "media": 0, "baja": 0}
-    for l in scored:
-        resumen[l["prioridad"]] += 1
+    enricheds, skipped = await enrich_all_ai(leads, mode=mode, max_concurrency=5)
+
+    payload = [e.model_dump() for e in enricheds]
+
+    for e in payload:
+        save_enriched_lead(e, status="ok")
+
+    write_json(payload, str(OUTPUT_ENRICH_JSON))
 
     return {
-        "total": len(scored),
-        "resumen_prioridad": resumen,
-        "output_file": str(OUTPUT_JSON)
+        "status": "ok",
+        "total": len(enricheds),
+        "enriched": len(enricheds),
+        "skipped": skipped,
+        "output_file": str(OUTPUT_ENRICH_JSON)
     }
 
 
